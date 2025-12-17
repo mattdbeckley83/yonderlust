@@ -1,7 +1,9 @@
-import SignUpClient from './_components/SignUpClient'
+import { SignUp } from '@clerk/nextjs'
 
-const Page = () => {
-    return <SignUpClient />
+export default function SignUpPage() {
+    return (
+        <div className="flex min-h-screen items-center justify-center">
+            <SignUp />
+        </div>
+    )
 }
-
-export default Page

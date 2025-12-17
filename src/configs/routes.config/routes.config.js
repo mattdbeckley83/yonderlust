@@ -11,6 +11,11 @@ export const protectedRoutes = {
     },
 }
 
-export const publicRoutes = {}
+export const publicRoutes = {
+    '/dashboard': {
+        key: 'dashboard',
+        authority: [],
+    },
+}
 
 export const authRoutes = authRoute

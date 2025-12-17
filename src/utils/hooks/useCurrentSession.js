@@ -1,11 +1,23 @@
-import { useContext } from 'react'
-import SessionContext from '@/components/auth/AuthProvider/SessionContext'
+'use client'
+import { useUser } from '@clerk/nextjs'
 
 const useCurrentSession = () => {
-    const context = useContext(SessionContext)
+    const { user, isLoaded, isSignedIn } = useUser()
+
+    // Map Clerk user to session format for backward compatibility
+    const session = isSignedIn && user ? {
+        user: {
+            id: user.id,
+            name: user.fullName || user.firstName || 'Anonymous',
+            email: user.primaryEmailAddress?.emailAddress,
+            image: user.imageUrl,
+        }
+    } : null
 
     return {
-        session: context,
+        session,
+        isLoaded,
+        isSignedIn,
     }
 }
 

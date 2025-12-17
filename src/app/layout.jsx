@@ -1,5 +1,4 @@
-import { auth } from '@/auth'
-import AuthProvider from '@/components/auth/AuthProvider'
+import { ClerkProvider } from '@clerk/nextjs'
 import ThemeProvider from '@/components/template/Theme/ThemeProvider'
 import pageMetaConfig from '@/configs/page-meta.config'
 import NavigationProvider from '@/components/template/Navigation/NavigationProvider'
@@ -12,14 +11,11 @@ export const metadata = {
 }
 
 export default async function RootLayout({ children }) {
-    const session = await auth()
-
     const navigationTree = await getNavigation()
-
     const theme = await getTheme()
 
     return (
-        <AuthProvider session={session}>
+        <ClerkProvider>
             <html
                 className={theme.mode === 'dark' ? 'dark' : 'light'}
                 dir={theme.direction}
@@ -33,6 +29,6 @@ export default async function RootLayout({ children }) {
                     </ThemeProvider>
                 </body>
             </html>
-        </AuthProvider>
+        </ClerkProvider>
     )
 }

@@ -3,7 +3,7 @@ import Avatar from '@/components/ui/Avatar'
 import Dropdown from '@/components/ui/Dropdown'
 import withHeaderItem from '@/utils/hoc/withHeaderItem'
 import Link from 'next/link'
-import signOut from '@/server/actions/auth/handleSignOut'
+import { useClerk } from '@clerk/nextjs'
 import useCurrentSession from '@/utils/hooks/useCurrentSession'
 import { PiUserDuotone, PiSignOutDuotone } from 'react-icons/pi'
 
@@ -11,9 +11,10 @@ const dropdownItemList = []
 
 const _UserDropdown = () => {
     const { session } = useCurrentSession()
+    const { signOut } = useClerk()
 
     const handleSignOut = async () => {
-        await signOut()
+        await signOut({ redirectUrl: '/sign-in' })
     }
 
     const avatarProps = {

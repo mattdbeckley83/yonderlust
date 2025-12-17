@@ -1,7 +1,9 @@
-import SignInClient from './_components/SignInClient'
+import { SignIn } from '@clerk/nextjs'
 
-const Page = () => {
-    return <SignInClient />
+export default function SignInPage() {
+    return (
+        <div className="flex min-h-screen items-center justify-center">
+            <SignIn />
+        </div>
+    )
 }
-
-export default Page
