@@ -6,7 +6,9 @@ import Dialog from '@/components/ui/Dialog'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Select from '@/components/ui/Select'
+import { PiTrash, PiWarning } from 'react-icons/pi'
 import { updateItem } from '@/server/actions/items/updateItem'
+import { deleteItem, getItemTripCount } from '@/server/actions/items/deleteItem'
 
 const weightUnitOptions = [
     { value: 'oz', label: 'oz' },
@@ -17,7 +19,10 @@ const weightUnitOptions = [
 
 const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] }) => {
     const [isPending, startTransition] = useTransition()
+    const [isDeleting, startDeleteTransition] = useTransition()
     const [error, setError] = useState(null)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [tripCount, setTripCount] = useState(0)
     const [formState, setFormState] = useState({
         name: '',
         item_type_id: null,
@@ -53,8 +58,19 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
                 description: item.description || '',
                 calories: item.calories?.toString() || '',
             })
+            setShowDeleteConfirm(false)
+            setTripCount(0)
         }
     }, [item])
+
+    // Fetch trip count when delete confirmation is shown
+    useEffect(() => {
+        if (showDeleteConfirm && item) {
+            getItemTripCount(item.id).then(({ count }) => {
+                setTripCount(count)
+            })
+        }
+    }, [showDeleteConfirm, item])
 
     const categoryOptions = categories.map((cat) => ({
         value: cat.id,
@@ -149,12 +165,87 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
 
     const handleClose = () => {
         setError(null)
+        setShowDeleteConfirm(false)
         onClose()
+    }
+
+    const handleDeleteClick = () => {
+        setShowDeleteConfirm(true)
+    }
+
+    const handleDeleteConfirm = () => {
+        startDeleteTransition(async () => {
+            const result = await deleteItem(item.id)
+            if (result.error) {
+                setError(result.error)
+                setShowDeleteConfirm(false)
+            } else {
+                handleClose()
+            }
+        })
+    }
+
+    const handleDeleteCancel = () => {
+        setShowDeleteConfirm(false)
+    }
+
+    if (showDeleteConfirm) {
+        return (
+            <Dialog isOpen={isOpen} onClose={handleClose} width={400}>
+                <div className="flex flex-col items-center text-center gap-4">
+                    <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                        <PiWarning className="w-6 h-6 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div>
+                        <h4 className="text-lg font-semibold mb-2">Delete Item</h4>
+                        <p className="text-gray-600 dark:text-gray-400">
+                            Are you sure you want to delete <span className="font-medium text-gray-900 dark:text-gray-100">{item?.name}</span>?
+                        </p>
+                        {tripCount > 0 && (
+                            <p className="text-amber-600 dark:text-amber-400 text-sm mt-2">
+                                This item is used in {tripCount} trip{tripCount > 1 ? 's' : ''}. It will be removed from all trips.
+                            </p>
+                        )}
+                    </div>
+                    {error && (
+                        <div className="text-red-500 text-sm">{error}</div>
+                    )}
+                    <div className="flex gap-3 w-full">
+                        <Button
+                            variant="plain"
+                            className="flex-1"
+                            onClick={handleDeleteCancel}
+                            disabled={isDeleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="solid"
+                            className="flex-1 !bg-red-600 hover:!bg-red-700"
+                            onClick={handleDeleteConfirm}
+                            loading={isDeleting}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
+        )
     }
 
     return (
         <Dialog isOpen={isOpen} onClose={handleClose} width={520}>
-            <h4 className="text-lg font-semibold mb-3">Edit Item</h4>
+            <div className="flex justify-between items-start mb-3">
+                <h4 className="text-lg font-semibold">Edit Item</h4>
+                <button
+                    type="button"
+                    onClick={handleDeleteClick}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete item"
+                >
+                    <PiTrash className="w-5 h-5" />
+                </button>
+            </div>
             <form onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-3">
                     {/* Row 1: Name (full width) */}
