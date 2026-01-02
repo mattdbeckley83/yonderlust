@@ -12,7 +12,7 @@ export default function OnboardingChecklist({ onboardingStatus }) {
             label: 'Add your first gear item',
             description: 'Start building your gear inventory',
             completed: onboardingStatus.hasAddedGear,
-            href: '/items?action=add',
+            href: '/gear?action=add',
             icon: PiBackpack,
         },
         {

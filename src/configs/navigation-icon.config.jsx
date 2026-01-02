@@ -10,7 +10,8 @@ const NavIcon = ({ src, alt }) => (
 
 const navigationIcon = {
     home: <NavIcon src="/img/logo/dashboard.png" alt="Home" />,
-    items: <NavIcon src="/img/logo/backpack.png" alt="My Items" />,
+    gear: <NavIcon src="/img/logo/backpack.png" alt="My Gear" />,
+    food: <NavIcon src="/img/logo/food.png" alt="My Food" />,
     trips: <NavIcon src="/img/logo/trips.png" alt="My Trips" />,
     carlo: <NavIcon src="/img/logo/carlo.png" alt="Carlo" />,
     profile: <PiUserCircleDuotone />,

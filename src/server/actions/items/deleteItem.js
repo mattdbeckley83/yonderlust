@@ -60,7 +60,8 @@ export async function deleteItem(itemId) {
         return { error: 'Failed to delete item' }
     }
 
-    revalidatePath('/items')
+    revalidatePath('/gear')
+    revalidatePath('/food')
     revalidatePath('/trips')
     return { success: true, tripCount: tripCount || 0 }
 }

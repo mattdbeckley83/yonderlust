@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 import Anthropic from '@anthropic-ai/sdk'
+import { canUseCarloChat, incrementCarloConversation } from '@/lib/checkSubscriptionAccess'
 
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
@@ -23,12 +24,63 @@ function carloGroupEnd() {
     if (isDev) console.groupEnd()
 }
 
+async function getUserProfileContext(userId) {
+    carloGroup('--- USER PROFILE CONTEXT ---')
+
+    let profileParts = []
+
+    // Fetch user's activities with notes
+    const { data: userActivities } = await supabaseAdmin
+        .from('user_activities')
+        .select(`
+            notes,
+            activities (name)
+        `)
+        .eq('user_id', userId)
+
+    carloLog('User activities fetched:', userActivities?.length || 0, userActivities)
+
+    if (userActivities && userActivities.length > 0) {
+        let activitiesContext = 'USER\'S ACTIVITIES & PREFERENCES:\n'
+        userActivities.forEach((ua) => {
+            const activityName = ua.activities?.name
+            if (activityName) {
+                if (ua.notes && ua.notes.trim()) {
+                    activitiesContext += `- ${activityName}: "${ua.notes.trim()}"\n`
+                } else {
+                    activitiesContext += `- ${activityName}: (no additional details)\n`
+                }
+            }
+        })
+        profileParts.push(activitiesContext)
+    }
+
+    // Fetch user's ai_context
+    const { data: userData } = await supabaseAdmin
+        .from('users')
+        .select('ai_context')
+        .eq('id', userId)
+        .single()
+
+    carloLog('User ai_context:', userData?.ai_context)
+
+    if (userData?.ai_context && userData.ai_context.trim()) {
+        profileParts.push(`ADDITIONAL USER CONTEXT:\n"${userData.ai_context.trim()}"`)
+    }
+
+    carloLog('Profile context parts:', profileParts.length)
+    carloGroupEnd()
+
+    return profileParts.length > 0 ? profileParts.join('\n\n') : null
+}
+
 async function getSelectedContext(userId, context = {}) {
-    const { itemIds = [], tripIds = [], activityIds = [] } = context
-    const hasContext = itemIds.length > 0 || tripIds.length > 0 || activityIds.length > 0
+    const { gearIds = [], foodIds = [], tripIds = [], activityIds = [] } = context
+    const hasContext = gearIds.length > 0 || foodIds.length > 0 || tripIds.length > 0 || activityIds.length > 0
 
     carloGroup('--- CONTEXT SELECTION ---')
-    carloLog('Selected item IDs:', itemIds)
+    carloLog('Selected gear IDs:', gearIds)
+    carloLog('Selected food IDs:', foodIds)
     carloLog('Selected trip IDs:', tripIds)
     carloLog('Selected activity IDs:', activityIds)
     carloLog('Has any context:', hasContext)
@@ -44,9 +96,39 @@ async function getSelectedContext(userId, context = {}) {
 
     let contextParts = []
 
-    // Fetch selected items
-    if (itemIds.length > 0) {
-        const { data: items } = await supabaseAdmin
+    // Fetch selected gear items
+    if (gearIds.length > 0) {
+        const { data: gearItems } = await supabaseAdmin
+            .from('items')
+            .select(`
+                name,
+                brand,
+                weight,
+                weight_unit,
+                description,
+                categories (name)
+            `)
+            .eq('user_id', userId)
+            .in('id', gearIds)
+            .order('name')
+
+        carloLog('Gear items fetched:', gearItems?.length || 0, gearItems)
+
+        if (gearItems && gearItems.length > 0) {
+            let gearContext = 'USER\'S GEAR INVENTORY:\n'
+            gearItems.forEach((item) => {
+                const category = item.categories?.name || 'uncategorized'
+                const weight = item.weight ? `${item.weight} ${item.weight_unit}` : 'no weight'
+                const brand = item.brand ? ` (${item.brand})` : ''
+                gearContext += `- ${item.name}${brand}: ${category}, ${weight}\n`
+            })
+            contextParts.push(gearContext)
+        }
+    }
+
+    // Fetch selected food items
+    if (foodIds.length > 0) {
+        const { data: foodItems } = await supabaseAdmin
             .from('items')
             .select(`
                 name,
@@ -55,26 +137,24 @@ async function getSelectedContext(userId, context = {}) {
                 weight_unit,
                 description,
                 calories,
-                categories (name),
-                item_types (name)
+                categories (name)
             `)
             .eq('user_id', userId)
-            .in('id', itemIds)
+            .in('id', foodIds)
             .order('name')
 
-        carloLog('Items fetched:', items?.length || 0, items)
+        carloLog('Food items fetched:', foodItems?.length || 0, foodItems)
 
-        if (items && items.length > 0) {
-            let itemsContext = 'SELECTED ITEMS:\n'
-            items.forEach((item) => {
-                const type = item.item_types?.name || 'unknown'
+        if (foodItems && foodItems.length > 0) {
+            let foodContext = 'USER\'S FOOD INVENTORY:\n'
+            foodItems.forEach((item) => {
                 const category = item.categories?.name || 'uncategorized'
                 const weight = item.weight ? `${item.weight} ${item.weight_unit}` : 'no weight'
                 const brand = item.brand ? ` (${item.brand})` : ''
-                const calories = type === 'food' && item.calories ? `, ${item.calories} cal` : ''
-                itemsContext += `- ${item.name}${brand}: ${type}, ${category}, ${weight}${calories}\n`
+                const calories = item.calories ? `, ${item.calories} cal` : ''
+                foodContext += `- ${item.name}${brand}: ${category}, ${weight}${calories}\n`
             })
-            contextParts.push(itemsContext)
+            contextParts.push(foodContext)
         }
     }
 
@@ -173,7 +253,7 @@ async function getSelectedContext(userId, context = {}) {
     return contextParts.length > 0 ? contextParts.join('\n') : null
 }
 
-function buildSystemPrompt(userContext) {
+function buildSystemPrompt(profileContext, selectedContext) {
     const basePrompt = `You are Carlo, an AI backpacking advisor for Yonderlust.
 
 Your expertise includes:
@@ -186,14 +266,26 @@ Your expertise includes:
 
 Be helpful, concise, and practical.`
 
-    if (userContext) {
+    let contextSections = []
+
+    // Add profile context (always available if user has set it)
+    if (profileContext) {
+        contextSections.push(profileContext)
+    }
+
+    // Add selected context (gear, food, trips selected for this conversation)
+    if (selectedContext) {
+        contextSections.push(selectedContext)
+    }
+
+    if (contextSections.length > 0) {
         return `${basePrompt}
 
-The user has shared the following context for this conversation:
+The user has shared the following context:
 
-${userContext}
+${contextSections.join('\n\n')}
 
-When discussing gear or trips, reference this specific context. Provide personalized recommendations based on what they've shared.
+When discussing gear, trips, or giving recommendations, reference this specific context. Provide personalized recommendations based on what they've shared about their preferences, activities, and situation.
 
 Remember to:
 - Be conversational but informative
@@ -256,6 +348,20 @@ export async function sendMessage(conversationId, userMessage, context = {}) {
 
     carloLog('User ID:', userId)
 
+    // Check subscription access
+    const accessCheck = await canUseCarloChat(userId)
+    carloLog('Subscription access:', accessCheck)
+
+    if (!accessCheck.allowed) {
+        carloLog('Access denied:', accessCheck.reason)
+        carloGroupEnd()
+        return {
+            error: 'subscription_limit_reached',
+            message: accessCheck.reason,
+            remaining: accessCheck.remaining,
+        }
+    }
+
     if (!conversationId || !userMessage?.trim()) {
         carloLog('Error: Missing required fields')
         carloGroupEnd()
@@ -296,9 +402,14 @@ export async function sendMessage(conversationId, userMessage, context = {}) {
     }
 
     try {
-        // Get selected context for system prompt
-        const userContext = await getSelectedContext(userId, context)
-        const systemPrompt = buildSystemPrompt(userContext)
+        // Get user profile context (activities with notes, ai_context)
+        const profileContext = await getUserProfileContext(userId)
+
+        // Get selected context for system prompt (gear, food, trips, activities)
+        const selectedContext = await getSelectedContext(userId, context)
+
+        // Build system prompt with both contexts
+        const systemPrompt = buildSystemPrompt(profileContext, selectedContext)
 
         carloGroup('--- SYSTEM PROMPT ---')
         carloLog(systemPrompt)
@@ -384,6 +495,9 @@ export async function sendMessage(conversationId, userMessage, context = {}) {
                 })
                 .eq('id', userId)
         }
+
+        // Increment conversation counter for Explorer users
+        await incrementCarloConversation(userId)
 
         revalidatePath('/carlo')
         revalidatePath('/home')

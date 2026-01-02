@@ -109,6 +109,7 @@ export async function updateItem(formData) {
         return { error: 'Failed to update item' }
     }
 
-    revalidatePath('/items')
+    revalidatePath('/gear')
+    revalidatePath('/food')
     return { success: true, item }
 }

@@ -14,6 +14,7 @@ export default function ItemPickerModal({
     categories = [],
     selectedIds = [],
     onSave,
+    itemType = 'gear', // 'gear' or 'food'
 }) {
     const [searchQuery, setSearchQuery] = useState('')
     const [localSelectedIds, setLocalSelectedIds] = useState(selectedIds)
@@ -100,13 +101,15 @@ export default function ItemPickerModal({
     }
 
     const selectedCount = localSelectedIds.length
+    const typeLabel = itemType === 'food' ? 'Food' : 'Gear'
+    const typeLabelLower = itemType === 'food' ? 'food' : 'gear'
 
     return (
         <Dialog isOpen={isOpen} onClose={handleClose} width={600}>
             <div className="flex flex-col h-[70vh] max-h-[600px]">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-lg font-semibold">Select Items</h4>
+                    <h4 className="text-lg font-semibold">Select {typeLabel}</h4>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                         {selectedCount} selected
                     </span>
@@ -115,7 +118,7 @@ export default function ItemPickerModal({
                 {/* Search */}
                 <div className="mb-4">
                     <Input
-                        placeholder="Search items..."
+                        placeholder={`Search ${typeLabelLower}...`}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         prefix={<PiMagnifyingGlass className="text-gray-400" />}
@@ -145,8 +148,8 @@ export default function ItemPickerModal({
                     {filteredItems.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                             {items.length === 0
-                                ? 'No items in your inventory'
-                                : 'No items match your search'}
+                                ? `No ${typeLabelLower} in your inventory`
+                                : `No ${typeLabelLower} match your search`}
                         </div>
                     ) : (
                         <div className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -206,7 +209,7 @@ export default function ItemPickerModal({
                         Cancel
                     </Button>
                     <Button variant="solid" size="sm" onClick={handleSave}>
-                        Save ({selectedCount} items)
+                        Save ({selectedCount} {typeLabelLower})
                     </Button>
                 </div>
             </div>

@@ -105,6 +105,24 @@ async function getActivities() {
     return activities || []
 }
 
+async function getItemTypes() {
+    const { data: itemTypes, error } = await supabaseAdmin
+        .from('item_types')
+        .select('id, name')
+
+    if (error) {
+        console.error('Error fetching item types:', error)
+        return {}
+    }
+
+    // Return as a map: { gear: id, food: id }
+    const typeMap = {}
+    itemTypes?.forEach((t) => {
+        typeMap[t.name] = t.id
+    })
+    return typeMap
+}
+
 async function getUserActivities(userId) {
     const { data: userActivities, error } = await supabaseAdmin
         .from('user_activities')
@@ -123,7 +141,7 @@ async function getUserActivities(userId) {
 export default async function CarloPage({ searchParams }) {
     const { userId } = await auth()
 
-    const [conversations, items, trips, tripItems, categories, activities, userActivityNames] = await Promise.all([
+    const [conversations, items, trips, tripItems, categories, activities, userActivityNames, itemTypes] = await Promise.all([
         getConversations(userId),
         getItems(userId),
         getTrips(userId),
@@ -131,6 +149,7 @@ export default async function CarloPage({ searchParams }) {
         getCategories(userId),
         getActivities(),
         getUserActivities(userId),
+        getItemTypes(),
     ])
 
     const params = await searchParams
@@ -160,6 +179,7 @@ export default async function CarloPage({ searchParams }) {
                         categories={categories}
                         activities={activities}
                         userActivityNames={userActivityNames}
+                        itemTypes={itemTypes}
                     />
                 </div>
             </div>

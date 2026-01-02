@@ -106,7 +106,8 @@ export async function addItem(formData) {
             .eq('id', userId)
     }
 
-    revalidatePath('/items')
+    revalidatePath('/gear')
+    revalidatePath('/food')
     revalidatePath('/home')
     return { success: true, item }
 }

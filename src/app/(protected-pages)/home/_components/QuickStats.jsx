@@ -12,7 +12,7 @@ export default function QuickStats({ itemsCount, tripsCount }) {
                     Quick Stats
                 </h3>
                 <div className="flex flex-col gap-3">
-                    <Link href="/items" className="group">
+                    <Link href="/gear" className="group">
                         <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors">
                             <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
                                 <PiBackpack className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />

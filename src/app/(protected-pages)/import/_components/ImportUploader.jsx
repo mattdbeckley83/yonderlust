@@ -199,7 +199,7 @@ const ImportUploader = ({ gearTypeId, existingCategories }) => {
                     message: `Successfully imported ${result.count} items!`,
                 })
                 setTimeout(() => {
-                    router.push('/items')
+                    router.push('/gear')
                 }, 1500)
             } else {
                 setImportResult({

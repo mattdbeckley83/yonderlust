@@ -92,7 +92,8 @@ export async function importLighterpackItems(items, gearTypeId) {
             return { error: 'Failed to import items' }
         }
 
-        revalidatePath('/items')
+        revalidatePath('/gear')
+        revalidatePath('/home')
         return { success: true, count: insertedItems.length }
     } catch (error) {
         console.error('Error in importLighterpackItems:', error)

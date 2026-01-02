@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { PiLightning, PiMapTrifold, PiChatCircle } from 'react-icons/pi'
+import Link from 'next/link'
+import { PiLightning, PiMapTrifold, PiChatCircle, PiWarningCircle } from 'react-icons/pi'
 import { getConversation } from '@/server/actions/carlo/getConversation'
 import { sendMessage } from '@/server/actions/carlo/sendMessage'
 import { createConversation } from '@/server/actions/carlo/createConversation'
@@ -20,6 +21,7 @@ export default function ChatInterface({
     categories = [],
     activities = [],
     userActivityNames = [],
+    itemTypes = {},
 }) {
     const router = useRouter()
     const [messages, setMessages] = useState([])
@@ -31,10 +33,12 @@ export default function ChatInterface({
     const [tripModalOpen, setTripModalOpen] = useState(false)
     const [feedbackData, setFeedbackData] = useState({})
     const [selectedContext, setSelectedContext] = useState({
-        itemIds: [],
+        gearIds: [],
+        foodIds: [],
         tripIds: [],
         activityIds: [],
     })
+    const [subscriptionLimitReached, setSubscriptionLimitReached] = useState(false)
     const messagesEndRef = useRef(null)
     const textareaRef = useRef(null)
 
@@ -115,6 +119,13 @@ export default function ChatInterface({
             }
             setMessages((prev) => [...prev, assistantMessage])
             router.refresh() // Refresh to update conversation title in sidebar
+        } else if (result.error === 'subscription_limit_reached') {
+            // Handle subscription limit - show upgrade prompt
+            setSubscriptionLimitReached(true)
+            // Remove the user message we just added since it wasn't processed
+            setMessages((prev) => prev.slice(0, -1))
+            // Put the message back in the input
+            setInputValue(message)
         } else {
             // Show error message
             const errorMessage = {
@@ -251,6 +262,7 @@ export default function ChatInterface({
                         tripItems={tripItems}
                         activities={activities}
                         categories={categories}
+                        itemTypes={itemTypes}
                         selectedContext={selectedContext}
                         onContextChange={setSelectedContext}
                     />
@@ -355,9 +367,42 @@ export default function ChatInterface({
                 tripItems={tripItems}
                 activities={activities}
                 categories={categories}
+                itemTypes={itemTypes}
                 selectedContext={selectedContext}
                 onContextChange={setSelectedContext}
             />
+
+            {/* Subscription Limit Banner */}
+            {subscriptionLimitReached && (
+                <div className="mx-4 mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-start gap-3">
+                        <PiWarningCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <h4 className="font-medium text-amber-800 dark:text-amber-200">
+                                Monthly conversation limit reached
+                            </h4>
+                            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                                You've used all 5 free conversations this month. Upgrade to Trailblazer for unlimited conversations with Carlo.
+                            </p>
+                            <div className="mt-3 flex gap-3">
+                                <Link
+                                    href="/profile"
+                                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                    Upgrade to Trailblazer
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => setSubscriptionLimitReached(false)}
+                                    className="px-4 py-2 text-sm text-amber-700 dark:text-amber-300 hover:underline"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                 <form onSubmit={handleSubmit}>
@@ -367,13 +412,14 @@ export default function ChatInterface({
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Type your message..."
+                            placeholder={subscriptionLimitReached ? "Upgrade to continue chatting..." : "Type your message..."}
                             rows={1}
-                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            disabled={subscriptionLimitReached}
+                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <button
                             type="submit"
-                            disabled={!inputValue.trim() || isLoading}
+                            disabled={!inputValue.trim() || isLoading || subscriptionLimitReached}
                             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {isLoading ? (

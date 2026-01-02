@@ -19,26 +19,18 @@ const weightUnitOptions = [
     { value: 'kg', label: 'kg' },
 ]
 
-// Outdoor-themed loading messages
 const loadingMessages = [
-    'Scouting the trail ahead...',
-    'Checking the gear specs...',
-    'Weighing options at base camp...',
-    'Consulting the trail guides...',
-    'Unpacking product details...',
-    'Reading the fine print by headlamp...',
-    'Cross-referencing with the map...',
-    'Calculating pack weight impact...',
-    'Scanning for ultralight alternatives...',
-    'Checking the weather forecast...',
-    'Setting up camp while we wait...',
-    'Filtering through the reviews...',
-    'Testing durability claims...',
-    'Measuring twice, packing once...',
-    'Almost at the summit...',
+    'Checking the nutrition label...',
+    'Calculating calories...',
+    'Reading the ingredients list...',
+    'Weighing the options...',
+    'Consulting the trail menu...',
+    'Measuring portion sizes...',
+    'Cross-referencing with meal plans...',
+    'Almost ready to eat...',
 ]
 
-const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
+const AddFoodModal = ({ isOpen, onClose, categories = [], foodTypeId }) => {
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState(null)
     const [productUrl, setProductUrl] = useState('')
@@ -48,7 +40,6 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
     const messageIntervalRef = useRef(null)
     const [formState, setFormState] = useState({
         name: '',
-        item_type_id: null,
         brand: '',
         category_id: null,
         new_category_name: '',
@@ -59,16 +50,6 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
         calories: '',
     })
 
-    // Filter out water from item types (water is tracked at trip level)
-    const filteredItemTypes = itemTypes.filter(
-        (type) => type.name.toLowerCase() !== 'water'
-    )
-
-    // Check if selected type is food
-    const selectedItemType = itemTypes.find((t) => t.id === formState.item_type_id)
-    const isFoodType = selectedItemType?.name?.toLowerCase() === 'food'
-
-    // Rotate loading messages while extracting
     useEffect(() => {
         if (isExtracting) {
             let messageIndex = 0
@@ -95,11 +76,6 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
         label: cat.name,
     }))
 
-    const itemTypeOptions = filteredItemTypes.map((type) => ({
-        value: type.id,
-        label: type.name.charAt(0).toUpperCase() + type.name.slice(1),
-    }))
-
     const handleInputChange = (field) => (e) => {
         setFormState((prev) => ({
             ...prev,
@@ -116,21 +92,18 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
 
     const handleCategoryChange = (option, actionMeta) => {
         if (actionMeta.action === 'create-option') {
-            // User typed a new category
             setFormState((prev) => ({
                 ...prev,
                 category_id: null,
                 new_category_name: option.value,
             }))
         } else if (option) {
-            // User selected an existing category
             setFormState((prev) => ({
                 ...prev,
                 category_id: option.value,
                 new_category_name: '',
             }))
         } else {
-            // User cleared the selection
             setFormState((prev) => ({
                 ...prev,
                 category_id: null,
@@ -170,14 +143,12 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
             if (result.success && result.data) {
                 const data = result.data
 
-                // Check confidence and show warning if low
                 if (data.confidence < 0.5) {
                     setExtractionWarning('Low confidence in extracted data. Please verify all fields.')
                 } else if (data.confidence < 0.7) {
                     setExtractionWarning('Some fields may need verification.')
                 }
 
-                // Find matching category or set as new category
                 let categoryId = null
                 let newCategoryName = ''
                 if (data.category) {
@@ -191,15 +162,6 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
                     }
                 }
 
-                // Find the matching item type based on detected type, fallback to gear
-                const detectedType = data.item_type?.toLowerCase() || 'gear'
-                const matchingItemType = itemTypes.find(
-                    (t) => t.name.toLowerCase() === detectedType
-                )
-                const gearType = itemTypes.find((t) => t.name.toLowerCase() === 'gear')
-                const selectedTypeId = matchingItemType?.id || gearType?.id || null
-
-                // Update form state with extracted data
                 setFormState((prev) => ({
                     ...prev,
                     name: data.name || prev.name,
@@ -210,7 +172,6 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
                     weight_unit: data.weight_unit || prev.weight_unit,
                     description: data.description || prev.description,
                     product_url: data.product_url || productUrl,
-                    item_type_id: selectedTypeId,
                     calories: data.calories !== null ? String(data.calories) : prev.calories,
                 }))
             }
@@ -226,14 +187,14 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
         e.preventDefault()
         setError(null)
 
-        if (!formState.item_type_id) {
-            setError('Type is required')
+        if (!foodTypeId) {
+            setError('Food type not configured')
             return
         }
 
         const formData = new FormData()
         formData.set('name', formState.name)
-        formData.set('item_type_id', formState.item_type_id)
+        formData.set('item_type_id', foodTypeId)
         formData.set('brand', formState.brand)
         formData.set('category_id', formState.category_id || '')
         formData.set('new_category_name', formState.new_category_name)
@@ -241,21 +202,17 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
         formData.set('weight_unit', formState.weight_unit)
         formData.set('description', formState.description)
         formData.set('product_url', formState.product_url)
-        if (isFoodType && formState.calories) {
-            formData.set('calories', formState.calories)
-        }
+        formData.set('calories', formState.calories)
 
         startTransition(async () => {
             const result = await addItem(formData)
             if (result.error) {
                 setError(result.error)
             } else {
-                // Reset form and close modal
                 setProductUrl('')
                 setExtractionWarning(null)
                 setFormState({
                     name: '',
-                    item_type_id: null,
                     brand: '',
                     category_id: null,
                     new_category_name: '',
@@ -276,7 +233,6 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
         setExtractionWarning(null)
         setFormState({
             name: '',
-            item_type_id: null,
             brand: '',
             category_id: null,
             new_category_name: '',
@@ -291,7 +247,7 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
 
     return (
         <Dialog isOpen={isOpen} onClose={handleClose} width={520}>
-            <h4 className="text-lg font-semibold mb-3">Add Item</h4>
+            <h4 className="text-lg font-semibold mb-3">Add Food</h4>
             <form onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-3">
                     {/* URL Smart-Fill Section */}
@@ -325,20 +281,19 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
                         )}
                     </div>
 
-                    {/* Extraction Warning */}
                     {extractionWarning && (
                         <Alert type="warning" showIcon className="py-2">
                             {extractionWarning}
                         </Alert>
                     )}
 
-                    {/* Row 1: Name (full width) */}
+                    {/* Name */}
                     <div>
                         <label className="text-sm font-medium mb-1 block">
                             Name <span className="text-red-500">*</span>
                         </label>
                         <Input
-                            placeholder="Item name"
+                            placeholder="Food name"
                             value={formState.name}
                             onChange={handleInputChange('name')}
                             required
@@ -346,34 +301,18 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
                         />
                     </div>
 
-                    {/* Row 2: Brand + Type */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-sm font-medium mb-1 block">Brand</label>
-                            <Input
-                                placeholder="Brand"
-                                value={formState.brand}
-                                onChange={handleInputChange('brand')}
-                                size="sm"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium mb-1 block">
-                                Type <span className="text-red-500">*</span>
-                            </label>
-                            <Select
-                                placeholder="Select..."
-                                options={itemTypeOptions}
-                                value={itemTypeOptions.find(
-                                    (opt) => opt.value === formState.item_type_id
-                                )}
-                                onChange={handleSelectChange('item_type_id')}
-                                size="sm"
-                            />
-                        </div>
+                    {/* Brand */}
+                    <div>
+                        <label className="text-sm font-medium mb-1 block">Brand</label>
+                        <Input
+                            placeholder="Brand"
+                            value={formState.brand}
+                            onChange={handleInputChange('brand')}
+                            size="sm"
+                        />
                     </div>
 
-                    {/* Row 3: Category + Weight + Unit */}
+                    {/* Category + Weight + Unit */}
                     <div className="grid grid-cols-12 gap-3">
                         <div className="col-span-5">
                             <label className="text-sm font-medium mb-1 block">Category</label>
@@ -413,23 +352,21 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
                         </div>
                     </div>
 
-                    {/* Row 3.5: Calories (only for food) */}
-                    {isFoodType && (
-                        <div>
-                            <label className="text-sm font-medium mb-1 block">Total Calories</label>
-                            <Input
-                                type="number"
-                                placeholder="0"
-                                value={formState.calories}
-                                onChange={handleInputChange('calories')}
-                                min="0"
-                                size="sm"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Total calories for entire package</p>
-                        </div>
-                    )}
+                    {/* Calories */}
+                    <div>
+                        <label className="text-sm font-medium mb-1 block">Total Calories</label>
+                        <Input
+                            type="number"
+                            placeholder="0"
+                            value={formState.calories}
+                            onChange={handleInputChange('calories')}
+                            min="0"
+                            size="sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Total calories for entire package</p>
+                    </div>
 
-                    {/* Row 4: Description */}
+                    {/* Description */}
                     <div>
                         <label className="text-sm font-medium mb-1 block">Description</label>
                         <Input
@@ -461,7 +398,7 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
                             size="sm"
                             loading={isPending}
                         >
-                            Add Item
+                            Add Food
                         </Button>
                     </div>
                 </div>
@@ -470,4 +407,4 @@ const AddItemModal = ({ isOpen, onClose, categories = [], itemTypes = [] }) => {
     )
 }
 
-export default AddItemModal
+export default AddFoodModal

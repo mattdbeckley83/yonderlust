@@ -17,7 +17,7 @@ const weightUnitOptions = [
     { value: 'kg', label: 'kg' },
 ]
 
-const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] }) => {
+const EditFoodModal = ({ isOpen, onClose, item, categories = [], foodTypeId }) => {
     const [isPending, startTransition] = useTransition()
     const [isDeleting, startDeleteTransition] = useTransition()
     const [error, setError] = useState(null)
@@ -25,7 +25,6 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
     const [tripCount, setTripCount] = useState(0)
     const [formState, setFormState] = useState({
         name: '',
-        item_type_id: null,
         brand: '',
         category_id: null,
         new_category_name: '',
@@ -35,21 +34,10 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
         calories: '',
     })
 
-    // Filter out water from item types (water is tracked at trip level)
-    const filteredItemTypes = itemTypes.filter(
-        (type) => type.name.toLowerCase() !== 'water'
-    )
-
-    // Check if selected type is food
-    const selectedItemType = itemTypes.find((t) => t.id === formState.item_type_id)
-    const isFoodType = selectedItemType?.name?.toLowerCase() === 'food'
-
-    // Populate form when item changes
     useEffect(() => {
         if (item) {
             setFormState({
                 name: item.name || '',
-                item_type_id: item.item_type_id || null,
                 brand: item.brand || '',
                 category_id: item.category_id || null,
                 new_category_name: '',
@@ -63,7 +51,6 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
         }
     }, [item])
 
-    // Fetch trip count when delete confirmation is shown
     useEffect(() => {
         if (showDeleteConfirm && item) {
             getItemTripCount(item.id).then(({ count }) => {
@@ -75,11 +62,6 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
     const categoryOptions = categories.map((cat) => ({
         value: cat.id,
         label: cat.name,
-    }))
-
-    const itemTypeOptions = filteredItemTypes.map((type) => ({
-        value: type.id,
-        label: type.name.charAt(0).toUpperCase() + type.name.slice(1),
     }))
 
     const handleInputChange = (field) => (e) => {
@@ -132,26 +114,22 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
         e.preventDefault()
         setError(null)
 
-        if (!formState.item_type_id) {
-            setError('Type is required')
+        if (!foodTypeId) {
+            setError('Food type not configured')
             return
         }
 
         const formData = new FormData()
         formData.set('item_id', item.id)
         formData.set('name', formState.name)
-        formData.set('item_type_id', formState.item_type_id)
+        formData.set('item_type_id', foodTypeId)
         formData.set('brand', formState.brand)
         formData.set('category_id', formState.category_id || '')
         formData.set('new_category_name', formState.new_category_name)
         formData.set('weight', formState.weight)
         formData.set('weight_unit', formState.weight_unit)
         formData.set('description', formState.description)
-        if (isFoodType && formState.calories) {
-            formData.set('calories', formState.calories)
-        } else {
-            formData.set('calories', '') // Clear calories if not food type
-        }
+        formData.set('calories', formState.calories)
 
         startTransition(async () => {
             const result = await updateItem(formData)
@@ -197,7 +175,7 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
                         <PiWarning className="w-6 h-6 text-red-600 dark:text-red-400" />
                     </div>
                     <div>
-                        <h4 className="text-lg font-semibold mb-2">Delete Item</h4>
+                        <h4 className="text-lg font-semibold mb-2">Delete Food</h4>
                         <p className="text-gray-600 dark:text-gray-400">
                             Are you sure you want to delete <span className="font-medium text-gray-900 dark:text-gray-100">{item?.name}</span>?
                         </p>
@@ -236,25 +214,25 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
     return (
         <Dialog isOpen={isOpen} onClose={handleClose} width={520} closable={false}>
             <div className="flex justify-between items-start mb-3">
-                <h4 className="text-lg font-semibold">Edit Item</h4>
+                <h4 className="text-lg font-semibold">Edit Food</h4>
                 <button
                     type="button"
                     onClick={handleDeleteClick}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    title="Delete item"
+                    title="Delete food"
                 >
                     <PiTrash className="w-5 h-5" />
                 </button>
             </div>
             <form onSubmit={handleSubmit}>
                 <div className="flex flex-col gap-3">
-                    {/* Row 1: Name (full width) */}
+                    {/* Name */}
                     <div>
                         <label className="text-sm font-medium mb-1 block">
                             Name <span className="text-red-500">*</span>
                         </label>
                         <Input
-                            placeholder="Item name"
+                            placeholder="Food name"
                             value={formState.name}
                             onChange={handleInputChange('name')}
                             required
@@ -262,34 +240,18 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
                         />
                     </div>
 
-                    {/* Row 2: Brand + Type */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-sm font-medium mb-1 block">Brand</label>
-                            <Input
-                                placeholder="Brand"
-                                value={formState.brand}
-                                onChange={handleInputChange('brand')}
-                                size="sm"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium mb-1 block">
-                                Type <span className="text-red-500">*</span>
-                            </label>
-                            <Select
-                                placeholder="Select..."
-                                options={itemTypeOptions}
-                                value={itemTypeOptions.find(
-                                    (opt) => opt.value === formState.item_type_id
-                                )}
-                                onChange={handleSelectChange('item_type_id')}
-                                size="sm"
-                            />
-                        </div>
+                    {/* Brand */}
+                    <div>
+                        <label className="text-sm font-medium mb-1 block">Brand</label>
+                        <Input
+                            placeholder="Brand"
+                            value={formState.brand}
+                            onChange={handleInputChange('brand')}
+                            size="sm"
+                        />
                     </div>
 
-                    {/* Row 3: Category + Weight + Unit */}
+                    {/* Category + Weight + Unit */}
                     <div className="grid grid-cols-12 gap-3">
                         <div className="col-span-5">
                             <label className="text-sm font-medium mb-1 block">Category</label>
@@ -329,23 +291,21 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
                         </div>
                     </div>
 
-                    {/* Row 3.5: Calories (only for food) */}
-                    {isFoodType && (
-                        <div>
-                            <label className="text-sm font-medium mb-1 block">Total Calories</label>
-                            <Input
-                                type="number"
-                                placeholder="0"
-                                value={formState.calories}
-                                onChange={handleInputChange('calories')}
-                                min="0"
-                                size="sm"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Total calories for entire package</p>
-                        </div>
-                    )}
+                    {/* Calories */}
+                    <div>
+                        <label className="text-sm font-medium mb-1 block">Total Calories</label>
+                        <Input
+                            type="number"
+                            placeholder="0"
+                            value={formState.calories}
+                            onChange={handleInputChange('calories')}
+                            min="0"
+                            size="sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Total calories for entire package</p>
+                    </div>
 
-                    {/* Row 4: Description */}
+                    {/* Description */}
                     <div>
                         <label className="text-sm font-medium mb-1 block">Description</label>
                         <Input
@@ -386,4 +346,4 @@ const EditItemModal = ({ isOpen, onClose, item, categories = [], itemTypes = [] 
     )
 }
 
-export default EditItemModal
+export default EditFoodModal

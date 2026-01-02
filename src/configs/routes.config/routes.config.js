@@ -9,8 +9,16 @@ export const protectedRoutes = {
             pageContainerType: 'contained',
         },
     },
-    '/items': {
-        key: 'items',
+    '/gear': {
+        key: 'gear',
+        authority: [],
+        meta: {
+            pageBackgroundType: 'plain',
+            pageContainerType: 'contained',
+        },
+    },
+    '/food': {
+        key: 'food',
         authority: [],
         meta: {
             pageBackgroundType: 'plain',

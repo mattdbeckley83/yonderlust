@@ -3,8 +3,7 @@ import SideNav from '@/components/template/SideNav'
 import Header from '@/components/template/Header'
 import MobileNav from '@/components/template/MobileNav'
 import SideNavToggle from '@/components/template/SideNavToggle'
-import UserProfileDropdown from '@/components//template/UserProfileDropdown'
-import LayoutBase from '@/components//template/LayoutBase'
+import LayoutBase from '@/components/template/LayoutBase'
 import { LAYOUT_COLLAPSIBLE_SIDE } from '@/constants/theme.constant'
 
 const CollapsibleSide = ({ children }) => {
@@ -22,11 +21,6 @@ const CollapsibleSide = ({ children }) => {
                             <>
                                 <MobileNav />
                                 <SideNavToggle />
-                            </>
-                        }
-                        headerEnd={
-                            <>
-                                <UserProfileDropdown hoverable={false} />
                             </>
                         }
                     />

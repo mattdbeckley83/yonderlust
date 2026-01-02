@@ -37,10 +37,10 @@ export async function getProfile() {
             return { error: 'Failed to fetch activities' }
         }
 
-        // Get user's selected activities
+        // Get user's selected activities with notes
         const { data: userActivities, error: userActivitiesError } = await supabaseAdmin
             .from('user_activities')
-            .select('activity_id')
+            .select('activity_id, notes')
             .eq('user_id', userId)
 
         if (userActivitiesError && userActivitiesError.code !== 'PGRST116') {
@@ -50,6 +50,14 @@ export async function getProfile() {
 
         const selectedActivityIds = (userActivities || []).map((ua) => ua.activity_id)
 
+        // Build activity notes map: { activityId: "note text" }
+        const activityNotes = {}
+        ;(userActivities || []).forEach((ua) => {
+            if (ua.notes) {
+                activityNotes[ua.activity_id] = ua.notes
+            }
+        })
+
         return {
             success: true,
             user: {
@@ -58,9 +66,18 @@ export async function getProfile() {
                 firstName: clerkUser?.firstName || dbUser?.first_name || '',
                 lastName: clerkUser?.lastName || dbUser?.last_name || '',
                 createdAt: dbUser?.created_at || clerkUser?.createdAt,
+                aiContext: dbUser?.ai_context || '',
+            },
+            subscription: {
+                plan: dbUser?.subscription_plan || 'explorer',
+                status: dbUser?.subscription_status || 'active',
+                trialEndsAt: dbUser?.trial_ends_at || null,
+                subscriptionEndsAt: dbUser?.subscription_ends_at || null,
+                hasStripeSubscription: !!dbUser?.stripe_subscription_id,
             },
             activities: activities || [],
             selectedActivityIds,
+            activityNotes,
         }
     } catch (error) {
         console.error('Error in getProfile:', error)

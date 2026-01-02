@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { PiCaretDown, PiCaretUp, PiPlus, PiCheck, PiX, PiPencilSimple } from 'react-icons/pi'
 import Button from '@/components/ui/Button'
 import ItemPickerModal from './ItemPickerModal'
@@ -13,41 +13,83 @@ export default function ContextFooter({
     tripItems = {},
     activities = [],
     categories = [],
+    itemTypes = {},
     selectedContext,
     onContextChange,
 }) {
     const [isExpanded, setIsExpanded] = useState(false)
-    const [itemPickerOpen, setItemPickerOpen] = useState(false)
+    const [gearPickerOpen, setGearPickerOpen] = useState(false)
+    const [foodPickerOpen, setFoodPickerOpen] = useState(false)
     const [tripPickerOpen, setTripPickerOpen] = useState(false)
     const [activityPickerOpen, setActivityPickerOpen] = useState(false)
 
-    const selectedItemCount = selectedContext.itemIds?.length || 0
+    // Filter items by type
+    const gearItems = useMemo(() => {
+        if (!itemTypes.gear) return []
+        return items.filter((item) => item.item_type_id === itemTypes.gear)
+    }, [items, itemTypes.gear])
+
+    const foodItems = useMemo(() => {
+        if (!itemTypes.food) return []
+        return items.filter((item) => item.item_type_id === itemTypes.food)
+    }, [items, itemTypes.food])
+
+    const selectedGearCount = selectedContext.gearIds?.length || 0
+    const selectedFoodCount = selectedContext.foodIds?.length || 0
     const selectedTripCount = selectedContext.tripIds?.length || 0
     const selectedActivityCount = selectedContext.activityIds?.length || 0
 
-    const hasAnySelection = selectedItemCount > 0 || selectedTripCount > 0 || selectedActivityCount > 0
+    const hasAnySelection = selectedGearCount > 0 || selectedFoodCount > 0 || selectedTripCount > 0 || selectedActivityCount > 0
+    const totalSelectedCount = selectedGearCount + selectedFoodCount + selectedTripCount + selectedActivityCount
 
-    // Get selected item names for display
-    const selectedItems = items.filter((item) => selectedContext.itemIds?.includes(item.id))
+    // Get selected items for display
+    const selectedGear = gearItems.filter((item) => selectedContext.gearIds?.includes(item.id))
+    const selectedFood = foodItems.filter((item) => selectedContext.foodIds?.includes(item.id))
     const selectedTrips = trips.filter((trip) => selectedContext.tripIds?.includes(trip.id))
     const selectedActivities = activities.filter((act) => selectedContext.activityIds?.includes(act.id))
 
-    const handleItemsChange = (itemIds) => {
-        onContextChange({ ...selectedContext, itemIds })
+    const handleGearChange = (gearIds) => {
+        onContextChange({ ...selectedContext, gearIds })
+    }
+
+    const handleFoodChange = (foodIds) => {
+        onContextChange({ ...selectedContext, foodIds })
     }
 
     const handleTripsChange = (tripIds, autoAddItemIds = []) => {
-        // When a trip is selected, auto-add its items
-        const newItemIds = [...new Set([...(selectedContext.itemIds || []), ...autoAddItemIds])]
-        onContextChange({ ...selectedContext, tripIds, itemIds: newItemIds })
+        // When a trip is selected, auto-add its gear and food items
+        const newGearIds = [...selectedContext.gearIds || []]
+        const newFoodIds = [...selectedContext.foodIds || []]
+
+        autoAddItemIds.forEach((itemId) => {
+            const item = items.find((i) => i.id === itemId)
+            if (item) {
+                if (item.item_type_id === itemTypes.gear && !newGearIds.includes(itemId)) {
+                    newGearIds.push(itemId)
+                } else if (item.item_type_id === itemTypes.food && !newFoodIds.includes(itemId)) {
+                    newFoodIds.push(itemId)
+                }
+            }
+        })
+
+        onContextChange({
+            ...selectedContext,
+            tripIds,
+            gearIds: [...new Set(newGearIds)],
+            foodIds: [...new Set(newFoodIds)]
+        })
     }
 
     const handleActivitiesChange = (activityIds) => {
         onContextChange({ ...selectedContext, activityIds })
     }
 
-    const clearItems = () => {
-        onContextChange({ ...selectedContext, itemIds: [] })
+    const clearGear = () => {
+        onContextChange({ ...selectedContext, gearIds: [] })
+    }
+
+    const clearFood = () => {
+        onContextChange({ ...selectedContext, foodIds: [] })
     }
 
     const clearTrips = () => {
@@ -80,7 +122,7 @@ export default function ContextFooter({
                     <span>Context</span>
                     {hasAnySelection && (
                         <span className="text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded">
-                            {selectedItemCount + selectedTripCount + selectedActivityCount} selected
+                            {totalSelectedCount} selected
                         </span>
                     )}
                 </span>
@@ -89,12 +131,17 @@ export default function ContextFooter({
             {/* Expanded Content */}
             {isExpanded && (
                 <div className="px-4 pb-3">
-                    {/* Context Buttons */}
-                    <div className="flex gap-2 mb-3">
+                    {/* Context Buttons - Order: Gear, Food, Trips, Activities */}
+                    <div className="flex gap-2 mb-3 flex-wrap">
                         <ContextButton
-                            label="Items"
-                            count={selectedItemCount}
-                            onClick={() => setItemPickerOpen(true)}
+                            label="Gear"
+                            count={selectedGearCount}
+                            onClick={() => setGearPickerOpen(true)}
+                        />
+                        <ContextButton
+                            label="Food"
+                            count={selectedFoodCount}
+                            onClick={() => setFoodPickerOpen(true)}
                         />
                         <ContextButton
                             label="Trips"
@@ -111,12 +158,20 @@ export default function ContextFooter({
                     {/* Selected Items Preview */}
                     {hasAnySelection && (
                         <div className="space-y-2 text-sm">
-                            {selectedItemCount > 0 && (
+                            {selectedGearCount > 0 && (
                                 <ContextPreviewRow
-                                    label="Items"
-                                    preview={formatListPreview(selectedItems)}
-                                    onEdit={() => setItemPickerOpen(true)}
-                                    onClear={clearItems}
+                                    label="Gear"
+                                    preview={formatListPreview(selectedGear)}
+                                    onEdit={() => setGearPickerOpen(true)}
+                                    onClear={clearGear}
+                                />
+                            )}
+                            {selectedFoodCount > 0 && (
+                                <ContextPreviewRow
+                                    label="Food"
+                                    preview={formatListPreview(selectedFood)}
+                                    onEdit={() => setFoodPickerOpen(true)}
+                                    onClear={clearFood}
                                 />
                             )}
                             {selectedTripCount > 0 && (
@@ -148,12 +203,23 @@ export default function ContextFooter({
 
             {/* Picker Modals */}
             <ItemPickerModal
-                isOpen={itemPickerOpen}
-                onClose={() => setItemPickerOpen(false)}
-                items={items}
+                isOpen={gearPickerOpen}
+                onClose={() => setGearPickerOpen(false)}
+                items={gearItems}
                 categories={categories}
-                selectedIds={selectedContext.itemIds || []}
-                onSave={handleItemsChange}
+                selectedIds={selectedContext.gearIds || []}
+                onSave={handleGearChange}
+                itemType="gear"
+            />
+
+            <ItemPickerModal
+                isOpen={foodPickerOpen}
+                onClose={() => setFoodPickerOpen(false)}
+                items={foodItems}
+                categories={categories}
+                selectedIds={selectedContext.foodIds || []}
+                onSave={handleFoodChange}
+                itemType="food"
             />
 
             <TripPickerModal

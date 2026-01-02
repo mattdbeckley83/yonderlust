@@ -16,7 +16,7 @@ export default function QuickActions() {
         {
             label: 'Add Gear',
             description: 'Add new items to your gear list',
-            href: '/items?action=add',
+            href: '/gear?action=add',
             iconSrc: '/img/logo/backpack.png',
             iconBg: 'bg-indigo-100 dark:bg-indigo-900/50',
         },

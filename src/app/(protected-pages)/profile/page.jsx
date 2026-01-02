@@ -31,8 +31,10 @@ export default async function ProfilePage() {
             </div>
             <ProfileForm
                 user={result.user}
+                subscription={result.subscription}
                 activities={result.activities}
                 selectedActivityIds={result.selectedActivityIds}
+                activityNotes={result.activityNotes}
             />
         </div>
     )

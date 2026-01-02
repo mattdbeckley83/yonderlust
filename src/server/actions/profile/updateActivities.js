@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { revalidatePath } from 'next/cache'
 
-export async function updateActivities(activityIds) {
+export async function updateActivities(activityIds, activityNotes = {}) {
     const { userId } = await auth()
 
     if (!userId) {
@@ -32,6 +32,7 @@ export async function updateActivities(activityIds) {
             const insertData = activityIds.map((activityId) => ({
                 user_id: userId,
                 activity_id: activityId,
+                notes: activityNotes[activityId]?.trim() || null,
             }))
 
             const { error: insertError } = await supabaseAdmin
@@ -63,6 +64,7 @@ export async function updateActivities(activityIds) {
 
         revalidatePath('/profile')
         revalidatePath('/home')
+        revalidatePath('/carlo')
         return { success: true }
     } catch (error) {
         console.error('Error in updateActivities:', error)

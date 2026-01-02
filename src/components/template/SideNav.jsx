@@ -2,6 +2,7 @@
 import classNames from '@/utils/classNames'
 import ScrollBar from '@/components/ui/ScrollBar'
 import VerticalMenuContent from '@/components/template/VerticalMenuContent'
+import SideNavUserSection from '@/components/template/SideNavUserSection'
 import useTheme from '@/utils/hooks/useTheme'
 import useCurrentSession from '@/utils/hooks/useCurrentSession'
 import useNavigation from '@/utils/hooks/useNavigation'
@@ -59,11 +60,12 @@ const SideNav = ({
                 className,
             )}
         >
-            <div className={classNames('side-nav-content', contentClass)}>
+            <div className={classNames('side-nav-content h-full flex flex-col', contentClass)}>
+                {/* Logo */}
                 <Link
                     href={appConfig.authenticatedEntryPath}
                     className={classNames(
-                        'flex items-center',
+                        'flex items-center flex-shrink-0',
                         LOGO_X_GUTTER,
                         sideNavCollapse && 'justify-center px-0'
                     )}
@@ -80,16 +82,23 @@ const SideNav = ({
                         />
                     )}
                 </Link>
-                <ScrollBar style={{ height: `calc(100% - ${HEADER_HEIGHT}px)` }} direction={direction}>
-                    <VerticalMenuContent
-                        collapsed={sideNavCollapse}
-                        navigationTree={navigationTree}
-                        routeKey={currentRouteKey}
-                        direction={direction}
-                        translationSetup={translationSetup}
-                        userAuthority={session?.user?.authority || []}
-                    />
-                </ScrollBar>
+
+                {/* Navigation - grows to fill available space */}
+                <div className="flex-1 min-h-0 overflow-hidden">
+                    <ScrollBar style={{ height: '100%' }} direction={direction}>
+                        <VerticalMenuContent
+                            collapsed={sideNavCollapse}
+                            navigationTree={navigationTree}
+                            routeKey={currentRouteKey}
+                            direction={direction}
+                            translationSetup={translationSetup}
+                            userAuthority={session?.user?.authority || []}
+                        />
+                    </ScrollBar>
+                </div>
+
+                {/* User section - fixed at bottom */}
+                <SideNavUserSection collapsed={sideNavCollapse} />
             </div>
         </div>
     )
